@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -17,407 +18,442 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class TCPClient {
-	
-	private static int BUFFER_SIZE = 1024;
 
-	
-	static private class Context {
-        private final SelectionKey key;
-        private final SocketChannel sc;
-        private final ByteBuffer bufferIn = ByteBuffer.allocate(BUFFER_SIZE);
-        private final ByteBuffer bufferOut = ByteBuffer.allocate(BUFFER_SIZE);
-        private boolean closed = false;
+  private static int BUFFER_SIZE = 4096;
 
-        private Context(SelectionKey key) {
-            this.key = key;
-            this.sc = (SocketChannel) key.channel();
-        }
+  static private class Context_client {
+    private final SelectionKey key;
+    private final SocketChannel sc;
+    private final ByteBuffer bufferIn = ByteBuffer.allocate(BUFFER_SIZE);
+    private final ByteBuffer bufferOut = ByteBuffer.allocate(BUFFER_SIZE);
+    private boolean closed = false;
 
-        /**
-         * Process the content of bufferIn
-         *
-         * The convention is that bufferIn is in write-mode before the call to process
-         * and after the call
-         *
-         */
-        private void processIn() {
-            // TODO
-        }
-
-        /**
-         * Try to fill bufferOut from the message queue
-         *
-         */
-        private void processOut() {
-            // TODO
-        }
-
-        /**
-         * Update the interestOps of the key looking only at values of the boolean
-         * closed and of both ByteBuffers.
-         *
-         * The convention is that both buffers are in write-mode before the call to
-         * updateInterestOps and after the call. Also it is assumed that process has
-         * been be called just before updateInterestOps.
-         */
-
-        private void updateInterestOps() {
-            // TODO
-        }
-
-        private void silentlyClose() {
-            try {
-                sc.close();
-            } catch (IOException e) {
-                // ignore exception
-            }
-        }
-
-        /**
-         * Performs the read action on sc
-         *
-         * The convention is that both buffers are in write-mode before the call to
-         * doRead and after the call
-         *
-         * @throws IOException
-         */
-        private void doRead() throws IOException {
-            // TODO
-        }
-
-        /**
-         * Performs the write action on sc
-         *
-         * The convention is that both buffers are in write-mode before the call to
-         * doWrite and after the call
-         *
-         * @throws IOException
-         */
-
-        private void doWrite() throws IOException {
-            // TODO
-        }
-
-        public void doConnect() throws IOException {
-            // TODO
-        }
+    private Context_client(SelectionKey key) {
+      this.key = key;
+      this.sc = (SocketChannel) key.channel();
     }
-	
-	
-	int rootPort;
-	int numberOfRequest = 0;
-	private final boolean ROOT;
-	private int port;
-	private int port_pere;
-	private int limit;
-	private int totalNumberOfClient = 0;
-	private ArrayList<Integer> clientOnEachUnderNetwork = new ArrayList<>();
-	private static final Logger logger = Logger.getLogger(TCPClient.class.getName());
 
-	private static Charset UTF8 = StandardCharsets.UTF_8; // Charset.forName("US-ASCII");
-	private ByteBuffer sendBuffer = ByteBuffer.allocateDirect(BUFFER_SIZE);
-	private ByteBuffer readBuffer = ByteBuffer.allocateDirect(BUFFER_SIZE);
+    private void updateInterestOps() {
+      // TODO
+    }
 
-	private final ServerSocketChannel serverSocketChannel; // Serveur App
-	private final SocketChannel sc; // Client App
-	private final Selector selector;
-	private final InetSocketAddress serverAddress; // Pas ROOT : Client -> Autre Serveur
-	private final Thread client;
-	private Thread server;
-  private Context uniqueContext;
+    private void silentlyClose() {
+      try {
+        sc.close();
+      } catch (IOException e) {
+        // ignore exception
+      }
+    }
 
-	public TCPClient(int host_port) throws IOException {
-		// TODO Auto-generated constructor stub
-		ROOT = true;
-		
-		this.serverAddress = null;
-    this.selector = Selector.open();
+    /**
+     * Performs the read action on sc
+     *
+     * The convention is that both buffers are in write-mode before the call to
+     * doRead and after the call
+     *
+     * @throws IOException
+     */
+    private void doRead() throws IOException {
+      // TODO
+    }
+
+    /**
+     * Performs the write action on sc
+     *
+     * The convention is that both buffers are in write-mode before the call to
+     * doWrite and after the call
+     *
+     * @throws IOException
+     */
+
+    private void doWrite() throws IOException {
+      // TODO
+    }
+
+    public void doConnect() throws IOException {
+      // TODO
+    }
+  }
+  
+  static private class Context_server {
+    private final SelectionKey key;
+    private final SocketChannel sc;
+    private final ByteBuffer bufferIn = ByteBuffer.allocate(BUFFER_SIZE);
+    private final ByteBuffer bufferOut = ByteBuffer.allocate(BUFFER_SIZE);
+    private boolean closed = false;
+
+    private Context_server(SelectionKey key) {
+      this.key = key;
+      this.sc = (SocketChannel) key.channel();
+    }
+
+    private void updateInterestOps() {
+      // TODO
+      var interestOps = 0;
+      if (bufferIn.hasRemaining() && !closed) {
+        interestOps |= SelectionKey.OP_READ;
+      }
+      if (bufferIn.position() == 0) {
+        interestOps |= SelectionKey.OP_WRITE;
+      }
+      if (interestOps == 0) {
+        silentlyClose();
+        return;
+      }
+      key.interestOps(interestOps);
+    }
+
+    private void silentlyClose() {
+      try {
+        sc.close();
+      } catch (IOException e) {
+        // ignore exception
+      }
+    }
+
+    /**
+     * Performs the read action on sc
+     *
+     * The convention is that buffer is in write-mode before calling doRead and is in
+     * write-mode after calling doRead
+     *
+     * @throws IOException
+     */
+    private void doRead() throws IOException {
+      // TODO
+      if(sc.read(bufferIn)==-1) {
+        closed =true;
+        logger.info("not readfull");
+        return;
+      }
+      if(bufferIn.hasRemaining()) {
+        logger.info("remain place in the buffer");
+        return;
+      }
+      bufferIn.flip();
+      updateInterestOps();
+    }
+
+    /**
+     * Performs the write action on sc
+     *
+     * The convention is that buffer is in write-mode before calling doWrite and is in
+     * write-mode after calling doWrite
+     *
+     * @throws IOException
+     */
+    private void doWrite() throws IOException {
+      // TODO
+      sc.write(bufferIn);
+      bufferIn.compact();
+      updateInterestOps();
+    }
+  }
+
+  int rootPort;
+  int numberOfRequest = 0;
+  private final boolean ROOT;
+  private int port;
+  private int port_pere;
+  private int limit;
+  private int totalNumberOfClient = 0;
+  private ArrayList<Integer> clientOnEachUnderNetwork = new ArrayList<>();
+  private static final Logger logger = Logger.getLogger(TCPClient.class.getName());
+
+  private static Charset UTF8 = StandardCharsets.UTF_8; // Charset.forName("US-ASCII");
+  private ByteBuffer BufferIn = ByteBuffer.allocateDirect(BUFFER_SIZE);
+  private ByteBuffer BufferOut = ByteBuffer.allocateDirect(BUFFER_SIZE);
+
+  private final ServerSocketChannel ssc; // Serveur App
+  private final SocketChannel sc; // Client App
+  private final Selector clientSelector;
+  private final Selector serverSelector;
+  private final InetSocketAddress serverAddress; // Pas ROOT : Client -> Autre Serveur
+  private final Thread client;
+  private Thread server;
+  private Context_client clientContext;
+//  private Context_server serverContext;
+
+  public TCPClient(int host_port) throws IOException {
+    // TODO Auto-generated constructor stub
+    ROOT = true;
+
+    this.clientSelector = Selector.open();
+    this.serverSelector = Selector.open();
+
+    this.serverAddress = null;
     sc = SocketChannel.open();
+
     this.port = port;
-    serverSocketChannel = ServerSocketChannel.open();
-    serverSocketChannel.bind(new InetSocketAddress(port));
-		
-		this.server = Thread.ofPlatform().unstarted(() -> {
-			try {
-				launch_server();
-			} catch (IOException | InterruptedException e) {
-				e.printStackTrace();
-			}
-		});
-        this.client = Thread.ofPlatform().unstarted(() -> {
-			try {
-				launch_client();
-			} catch (IOException | InterruptedException e) {
-				e.printStackTrace();
-			}
-		});
+    ssc = ServerSocketChannel.open();
+    ssc.bind(new InetSocketAddress(port));
 
+    this.server = Thread.ofPlatform().unstarted(() -> {
+      try {
+        launch_server();
+      } catch (IOException | InterruptedException e) {
+        e.printStackTrace();
+      }
+    });
+    this.client = Thread.ofPlatform().unstarted(() -> {
+      try {
+        launch_client();
+      } catch (IOException | InterruptedException e) {
+        e.printStackTrace();
+      }
+    });
 
-		
+    logger.info(this.getClass().getName() + " starts on port " + port);
+  }
 
-		logger.info(this.getClass().getName() + " starts on port " + port);
-	}
-
-	public TCPClient(int host_port, InetSocketAddress serverAddress) throws IOException {
-		// TODO Auto-generated constructor stub
-		ROOT = false;
-		
-		this.serverAddress = serverAddress;
-    this.selector = Selector.open();
+  public TCPClient(int host_port, InetSocketAddress serverAddress) throws IOException {
+    // TODO Auto-generated constructor stub
+    ROOT = false;
+    
+    this.clientSelector = Selector.open();
+    this.serverSelector = Selector.open();
+    
+    this.serverAddress = serverAddress;
     sc = SocketChannel.open();
-    this.port = port;
     sc.connect(serverAddress);
+    
+    this.port = port;
     this.port_pere = serverAddress.getPort();
-    serverSocketChannel = ServerSocketChannel.open();
-    serverSocketChannel.bind(new InetSocketAddress(port));
-		
-        this.server = Thread.ofPlatform().unstarted(() -> {
-			try {
-				launch_server();
-			} catch (IOException | InterruptedException e) {
-				e.printStackTrace();
-			}
-		});
-        this.client = Thread.ofPlatform().unstarted(() -> {
-			try {
-				launch_client();
-			} catch (IOException | InterruptedException e) {
-				e.printStackTrace();
-			}
-		});
+    ssc = ServerSocketChannel.open();
+    ssc.bind(new InetSocketAddress(port));
 
-		logger.info(this.getClass().getName() + " starts on port " + port);
-	}
+    this.server = Thread.ofPlatform().unstarted(() -> {
+      try {
+        launch_server();
+      } catch (IOException | InterruptedException e) {
+        e.printStackTrace();
+      }
+    });
+    this.client = Thread.ofPlatform().unstarted(() -> {
+      try {
+        launch_client();
+      } catch (IOException | InterruptedException e) {
+        e.printStackTrace();
+      }
+    });
+
+    logger.info(this.getClass().getName() + " starts on port " + port);
+  }
 
   /**
-	 * Iterative server main loop
-	 *
-	 * @throws IOException
-	 * @throws InterruptedException
-	 */
-	
-	public void launch() throws IOException, InterruptedException {
-		sc.configureBlocking(false);
-		this.server.start();
-		this.client.start();
+   * Iterative server main loop
+   *
+   * @throws IOException
+   * @throws InterruptedException
+   */
 
-	}
+  public void launch() throws IOException, InterruptedException {
+    // client side
+    sc.configureBlocking(false);
+    var clientKey = sc.register(clientSelector, SelectionKey.OP_CONNECT);
+    clientContext = new Context_client(clientKey);
+    clientKey.attach(clientContext);
+    
+    // server side
+    ssc.configureBlocking(false);
+    var serverKey = ssc.register(serverSelector, SelectionKey.OP_ACCEPT);
+//    serverContext = new Context_server(serverKey);
+//    serverKey.attach(serverContext);
+        
+    this.server.start();
+    this.client.start();
+  }
 
-
-	public void launch_server() throws IOException, InterruptedException {
-
-		logger.info("Server started");
-		while (!Thread.interrupted()) {
-			SocketChannel client = serverSocketChannel.accept();
-			Thread.ofPlatform().start(() -> {
-				try {
-					logger.info("Connection accepted from " + client.getRemoteAddress());
-					serve(client);
-				} catch (IOException ioe) {
-					logger.log(Level.SEVERE, "Connection terminated with client by IOException", ioe.getCause());
-				} finally {
-					silentlyClose(client);
-				}
-			});
-		}
-	}
-
-	/**
-	 * Treat the connection sc applying the protocol. All IOException are thrown
-	 *
-	 * @param sc
-	 * @throws IOException
-	 */
-	private void serve(SocketChannel sc) throws IOException {
-
-		// TODO
-		for (;;) {
-			try {
-				ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
-				ByteBuffer buffer2;
-				if (!readFully(sc, buffer)) {
-					return;
-				}
-				// sc.read(buffer);
-
-				buffer.flip();
-				int nb = buffer.getInt();
-				long sum = 0;
-				System.out.println(nb + " " + sum);
-
-				buffer2 = ByteBuffer.allocate(Long.BYTES * nb);
-				if (!readFully(sc, buffer2)) {
-					return;
-				}
-				buffer2.flip();
-
-				for (int i = 0; i < nb; i++) {
-					sum += (long) buffer2.getLong();
-
-//					System.out.println(nb + " " + i + " " + sum);
-				}
-
-				System.out.println(sum);
-				sc.write(ByteBuffer.allocate(Long.BYTES).putLong(sum).flip());
-			} catch (IOException ioe) {
-				logger.log(Level.SEVERE, "Connection terminated with client by IOException");
-			}
-		}
-
-	}
-	
-	
-	public void launch_client() throws IOException, InterruptedException {
-		while (!Thread.interrupted()) {
-            try {
-                selector.select(this::treatKey);
-//                processCommands();
-            } catch (UncheckedIOException tunneled) {
-                throw tunneled.getCause();
-            }
-        }
-		
-	}
-	
-	private void treatKey(SelectionKey key) {
-        try {
-            if (key.isValid() && key.isConnectable()) {
-                uniqueContext.doConnect();
-            }
-            if (key.isValid() && key.isWritable()) {
-                uniqueContext.doWrite();
-            }
-            if (key.isValid() && key.isReadable()) {
-                uniqueContext.doRead();
-            }
-        } catch (IOException ioe) {
-            // lambda call in select requires to tunnel IOException
-            throw new UncheckedIOException(ioe);
-        }
+  public void launch_server() throws IOException, InterruptedException {
+    logger.info("Server started");
+    while (!Thread.interrupted()) {
+      try {
+        serverSelector.select(this::treatKey_server);
+      } catch (UncheckedIOException tunneled) {
+        throw tunneled.getCause();
+      }
     }
+  }
 
-	/**
-	 * Close a SocketChannel while ignoring IOExecption
-	 *
-	 * @param sc
-	 */
+  public void launch_client() throws IOException, InterruptedException {
+    while (!Thread.interrupted()) {
+      try {
+        clientSelector.select(this::treatKey_client);
+      } catch (UncheckedIOException tunneled) {
+        throw tunneled.getCause();
+      }
+    }
+  }
 
-	private void silentlyClose(Closeable sc) {
-		if (sc != null) {
-			try {
-				sc.close();
-			} catch (IOException e) {
-				// Do nothing
-			}
-		}
-	}
+  private void treatKey_client(SelectionKey key) {
+    try {
+      if (key.isValid() && key.isConnectable()) {
+        clientContext.doConnect();
+      }
+      if (key.isValid() && key.isWritable()) {
+        clientContext.doWrite();
+      }
+      if (key.isValid() && key.isReadable()) {
+        clientContext.doRead();
+      }
+    } catch (IOException ioe) {
+      // lambda call in select requires to tunnel IOException
+      throw new UncheckedIOException(ioe);
+    }
+  }
 
-	static boolean readFully(SocketChannel sc, ByteBuffer buffer) throws IOException {
-		while (buffer.hasRemaining()) {
+  private void treatKey_server(SelectionKey key) {
+    try {
+      if (key.isValid() && key.isAcceptable()) {
+        doAccept(key);
+      }
+    } catch (IOException ioe) {
+      // lambda call in select requires to tunnel IOException
+      throw new UncheckedIOException(ioe);
+    }
+    try {
+      if (key.isValid() && key.isWritable()) {
+        ((Context_server) key.attachment()).doWrite();
+      }
+      if (key.isValid() && key.isReadable()) {
+        ((Context_server) key.attachment()).doRead();
+      }
+    } catch (IOException e) {
+      logger.log(Level.INFO, "Connection closed with client due to IOException", e);
+      silentlyClose(key);
+    }
+  }
+  
+  private void doAccept(SelectionKey key) throws IOException {
+    // TODO
+    ServerSocketChannel ssc = (ServerSocketChannel) key.channel();
+    SocketChannel sc = ssc.accept();
+    if(sc == null) {
+      logger.info("Selector gave bad hint");
+      return;
+    }
+    sc.configureBlocking(false);
+    var newKey = sc.register(serverSelector,SelectionKey.OP_READ);
+    newKey.attach(new Context_server(newKey));
+  }
 
-			if (sc.read(buffer) == -1) {
-				logger.info("Input stream closed");
-				return false;
-			}
-		}
-		return true;
-	}
+  /**
+   * Close a SocketChannel while ignoring IOExecption
+   *
+   * @param sc
+   */
 
-	// Le ByteBuffer sera par convention toujours en mode écriture avant et après
-	// chaque méthode.
-	// Trame de connexion vers une autre application
-	void trame01() {
-		sendBuffer.flip();
-		sendBuffer.put((byte) 1);
-		sendBuffer.flip();
-	}
+  private void silentlyClose(SelectionKey key) {
+    var sc = (Channel) key.channel();
+    try {
+      sc.close();
+    } catch (IOException e) {
+      // ignore exception
+    }
+  }
 
-	// Trame de mise à jour après connexion
-	void trame02() {
-		sendBuffer.flip();
-		sendBuffer.put((byte) 2);
-		sendBuffer.putInt(totalNumberOfClient);
-		sendBuffer.flip();
-	}
+  static boolean readFully(SocketChannel sc, ByteBuffer buffer) throws IOException {
+    while (buffer.hasRemaining()) {
 
-	// Trame de demande de calcul
-	void trame03(String url, String name, int start, int end) {
-		sendBuffer.flip();
-		sendBuffer.put((byte) 3);
-		sendBuffer.putInt(numberOfRequest++);
-		sendBuffer.putInt(url.length());
-		sendBuffer.put(UTF8.encode(url));
-		sendBuffer.putInt(name.length());
-		sendBuffer.put(UTF8.encode(name));
-		sendBuffer.putInt(start);
-		sendBuffer.putInt(end);
-		sendBuffer.flip();
-	}
+      if (sc.read(buffer) == -1) {
+        logger.info("Input stream closed");
+        return false;
+      }
+    }
+    return true;
+  }
 
-	// Trame de retour de calcul
-	void trame04(int senderPort, int numberOfTheRequest, int start, int end, String result) {
-		sendBuffer.flip();
-		sendBuffer.put((byte) 4);
-		sendBuffer.putInt(senderPort);
-		sendBuffer.putInt(numberOfTheRequest);
-		sendBuffer.putInt(start);
-		sendBuffer.putInt(end);
-		sendBuffer.putInt(result.length());
-		sendBuffer.put(UTF8.encode(result));
-		sendBuffer.flip();
-	}
+  // Le ByteBuffer sera par convention toujours en mode écriture avant et après
+  // chaque méthode.
+  // Trame de connexion vers une autre application
+  void trame01() {
+    BufferOut.flip();
+    BufferOut.put((byte) 1);
+    BufferOut.flip();
+  }
 
-	// Trame de demande d'espace disponible
-	void trame05() {
-		sendBuffer.flip();
-		sendBuffer.put((byte) 5);
-		sendBuffer.flip();
-	}
+  // Trame de mise à jour après connexion
+  void trame02() {
+    BufferOut.flip();
+    BufferOut.put((byte) 2);
+    BufferOut.putInt(totalNumberOfClient);
+    BufferOut.flip();
+  }
 
-	// Trame de remonter de la limit du sous réseau
-	void trame06(int totalLimit) {
-		sendBuffer.flip();
-		sendBuffer.put((byte) 6);
-		totalLimit += limit;
-		sendBuffer.putInt(totalLimit);
-		sendBuffer.flip();
-	}
+  // Trame de demande de calcul
+  void trame03(String url, String name, int start, int end) {
+    BufferOut.flip();
+    BufferOut.put((byte) 3);
+    BufferOut.putInt(numberOfRequest++);
+    BufferOut.putInt(url.length());
+    BufferOut.put(UTF8.encode(url));
+    BufferOut.putInt(name.length());
+    BufferOut.put(UTF8.encode(name));
+    BufferOut.putInt(start);
+    BufferOut.putInt(end);
+    BufferOut.flip();
+  }
 
-	// Trame de déconnexion
-	void trame07() {
-		sendBuffer.flip();
-		sendBuffer.put((byte) 7);
-		sendBuffer.flip();
-	}
+  // Trame de retour de calcul
+  void trame04(int senderPort, int numberOfTheRequest, int start, int end, String result) {
+    BufferOut.flip();
+    BufferOut.put((byte) 4);
+    BufferOut.putInt(senderPort);
+    BufferOut.putInt(numberOfTheRequest);
+    BufferOut.putInt(start);
+    BufferOut.putInt(end);
+    BufferOut.putInt(result.length());
+    BufferOut.put(UTF8.encode(result));
+    BufferOut.flip();
+  }
 
-	// Trame de remontée des calculs en cas de déconnexion
-	void trame08(int senderPort, int numberOfTheRequest, int start, int end) {
-		sendBuffer.flip();
-		sendBuffer.put((byte) 8);
-		sendBuffer.putInt(senderPort);
-		sendBuffer.putInt(numberOfTheRequest);
-		sendBuffer.putInt(start);
-		sendBuffer.putInt(end);
-		sendBuffer.flip();
-	}
+  // Trame de demande d'espace disponible
+  void trame05() {
+    BufferOut.flip();
+    BufferOut.put((byte) 5);
+    BufferOut.flip();
+  }
 
-	public static void main(String[] args) throws NumberFormatException, IOException, InterruptedException {
-		if (args.length < 1) {
-			usage();
-			return;
-		}
-		else if (args.length == 1){
-			new TCPClient(Integer.parseInt(args[0])).launch();
-		}
-		else {
-		  new TCPClient(Integer.parseInt(args[0]), new InetSocketAddress(Integer.parseInt(args[1]))).launch();
-		}
-	}
+  // Trame de remonter de la limit du sous réseau
+  void trame06(int totalLimit) {
+    BufferOut.flip();
+    BufferOut.put((byte) 6);
+    totalLimit += limit;
+    BufferOut.putInt(totalLimit);
+    BufferOut.flip();
+  }
 
-	private static void usage() {
-		System.out.println("Usage : Client port [host_port] [connection_port]");
-	}
+  // Trame de déconnexion
+  void trame07() {
+    BufferOut.flip();
+    BufferOut.put((byte) 7);
+    BufferOut.flip();
+  }
 
-	
+  // Trame de remontée des calculs en cas de déconnexion
+  void trame08(int senderPort, int numberOfTheRequest, int start, int end) {
+    BufferOut.flip();
+    BufferOut.put((byte) 8);
+    BufferOut.putInt(senderPort);
+    BufferOut.putInt(numberOfTheRequest);
+    BufferOut.putInt(start);
+    BufferOut.putInt(end);
+    BufferOut.flip();
+  }
+
+  public static void main(String[] args) throws NumberFormatException, IOException, InterruptedException {
+    if (args.length < 1) {
+      usage();
+      return;
+    } else if (args.length == 1) {
+      new TCPClient(Integer.parseInt(args[0])).launch();
+    } else {
+      new TCPClient(Integer.parseInt(args[0]), new InetSocketAddress(args[1], Integer.parseInt(args[2]))).launch();
+    }
+  }
+
+  private static void usage() {
+    System.out.println("Usage : Client server_port [connection_name] [connection_port]");
+  }
 
 }
