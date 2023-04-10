@@ -26,7 +26,6 @@ public class TCPClient {
         private final SocketChannel sc;
         private final ByteBuffer bufferIn = ByteBuffer.allocate(BUFFER_SIZE);
         private final ByteBuffer bufferOut = ByteBuffer.allocate(BUFFER_SIZE);
-        private final ArrayDeque<Message> queue = new ArrayDeque<>();
         private boolean closed = false;
 
         private Context(SelectionKey key) {
@@ -42,15 +41,6 @@ public class TCPClient {
          *
          */
         private void processIn() {
-            // TODO
-        }
-
-        /**
-         * Add a message to the message queue, tries to fill bufferOut and updateInterestOps
-         *
-         * @param bb
-         */
-        private void queueMessage(Message msg) {
             // TODO
         }
 
@@ -134,11 +124,19 @@ public class TCPClient {
 	private final InetSocketAddress serverAddress; // Pas ROOT : Client -> Autre Serveur
 	private final Thread client;
 	private Thread server;
-    private Context uniqueContext;
+  private Context uniqueContext;
 
-	public TCPClient(int port) throws IOException {
+	public TCPClient(int host_port) throws IOException {
 		// TODO Auto-generated constructor stub
 		ROOT = true;
+		
+		this.serverAddress = null;
+    this.selector = Selector.open();
+    sc = SocketChannel.open();
+    this.port = port;
+    serverSocketChannel = ServerSocketChannel.open();
+    serverSocketChannel.bind(new InetSocketAddress(port));
+		
 		this.server = Thread.ofPlatform().unstarted(() -> {
 			try {
 				launch_server();
@@ -155,19 +153,24 @@ public class TCPClient {
 		});
 
 
-		this.serverAddress = null;
-		this.selector = Selector.open();
-		sc = SocketChannel.open();
-		this.port = port;
-		serverSocketChannel = ServerSocketChannel.open();
-		serverSocketChannel.bind(new InetSocketAddress(port));
+		
 
 		logger.info(this.getClass().getName() + " starts on port " + port);
 	}
 
-	public TCPClient(int port, InetSocketAddress serverAddress) throws IOException {
+	public TCPClient(int host_port, InetSocketAddress serverAddress) throws IOException {
 		// TODO Auto-generated constructor stub
 		ROOT = false;
+		
+		this.serverAddress = serverAddress;
+    this.selector = Selector.open();
+    sc = SocketChannel.open();
+    this.port = port;
+    sc.connect(serverAddress);
+    this.port_pere = serverAddress.getPort();
+    serverSocketChannel = ServerSocketChannel.open();
+    serverSocketChannel.bind(new InetSocketAddress(port));
+		
         this.server = Thread.ofPlatform().unstarted(() -> {
 			try {
 				launch_server();
@@ -183,20 +186,10 @@ public class TCPClient {
 			}
 		});
 
-
-		this.serverAddress = serverAddress;
-		this.selector = Selector.open();
-		sc = SocketChannel.open();
-		this.port = port;
-		sc.connect(serverAddress);
-		this.port_pere = serverAddress.getPort();
-		serverSocketChannel = ServerSocketChannel.open();
-		serverSocketChannel.bind(new InetSocketAddress(port));
-
 		logger.info(this.getClass().getName() + " starts on port " + port);
 	}
 
-	/**
+  /**
 	 * Iterative server main loop
 	 *
 	 * @throws IOException
@@ -217,7 +210,6 @@ public class TCPClient {
 		while (!Thread.interrupted()) {
 			SocketChannel client = serverSocketChannel.accept();
 			Thread.ofPlatform().start(() -> {
-
 				try {
 					logger.info("Connection accepted from " + client.getRemoteAddress());
 					serve(client);
@@ -414,23 +406,16 @@ public class TCPClient {
 			usage();
 			return;
 		}
-		TCPClient server;
-		if (args.length == 1) {
-			server = new TCPClient(Integer.parseInt(args[0]));
-
-		} else if (args.length == 3) {
-			server = new TCPClient(Integer.parseInt(args[0]),
-					new InetSocketAddress(args[1], Integer.parseInt(args[2])));
-
-		} else {
-			usage();
-			return;
+		else if (args.length == 1){
+			new TCPClient(Integer.parseInt(args[0])).launch();
 		}
-		server.launch();
+		else {
+		  new TCPClient(Integer.parseInt(args[0]), new InetSocketAddress(Integer.parseInt(args[1]))).launch();
+		}
 	}
 
 	private static void usage() {
-		System.out.println("Usage : Client port [hostname] [port_hostname]");
+		System.out.println("Usage : Client port [host_port] [connection_port]");
 	}
 
 	
